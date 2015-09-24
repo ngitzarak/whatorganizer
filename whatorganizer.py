@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys
 import os
 import re
@@ -7,7 +9,6 @@ from optparse import OptionParser
 import hashlib
 import urllib
 import pickle
-from pprint import pprint
 from getpass import getpass
 from time import sleep
 import sqlite3
@@ -19,8 +20,9 @@ parser.add_option("-w", "--torrentdir", help="Directory with .torrent files", de
 parser.add_option("-y", "--symdir", help="Directory to maintain symlinks", dest="symdir")
 parser.add_option("-u", "--username", help="What.CD username (mandatory on first login)", dest="username")
 parser.add_option("-p", "--password", help="What.CD password (optional, can be entered interactively)", dest="password")
-parser.add_option("--amount", help="Only do specific amount of lookups", dest="amount", type="int", default=-1)
-
+parser.add_option("-x", "--freq", help="Minimum interval between lookups in seconds (minimum 2)", dest="interval", type="float", default=2.)
+parser.add_option("--clear")
+parser.add_option("--rebuild", help="Rebuild tagfolders")
 
 (options,args) = parser.parse_args()
 
@@ -36,14 +38,12 @@ try:
 except:
 	cookies = ""
 	
-if not options.username or not options.torrentdir or not options.symdir or len(args) != 1:
+if not options.username or not options.torrentdir or not options.symdir or options.interval < 2. or len(args) != 1:
 	parser.print_help()
 	exit(-1)
 
 musicdir=args[0]
 
-#if new_db:
-#	db['cookies'] = []
 if not cookies and not options.password:
 	options.password = getpass("Password: ")
 
@@ -82,17 +82,12 @@ for subdir, dirs, files in os.walk(options.torrentdir):
 				
 			
 			
-			#torrentdata = open(os.path.join(subdir,file)).read()
-			#torrent = decode(torrentdata)
-			
-			#print urllib.urlencode(hashlib.sha1(torrent["info"]))
-			
+
 			if not whatcd_torrent:
 				continue
 			
 			
 			if torrents.find_one({'info_hash': info_hash}):
-				#print "Torrent already in db"
 				continue
 			
 			if n == 0:
@@ -108,7 +103,7 @@ for subdir, dirs, files in os.walk(options.torrentdir):
 				create_symlink(torrents.find_one({'info_hash': info_hash}))
 				print name + " added"
 			else:
-				print "Error: "+result
+				print "Error: "+result['status']
 			
 			
 			t_b = datetime.datetime.now()
@@ -116,10 +111,7 @@ for subdir, dirs, files in os.walk(options.torrentdir):
 			
 			print str(t_c.seconds + t_c.microseconds/1000000.) + " seconds"
 			
-			if (t_c.seconds*1000000 + t_c.microseconds) > 2000000:
-				sleep((1./2000)-(1./(t_c.seconds*1000 + t_c.microseconds/1000.)))
+			if (t_c.seconds*1000000 + t_c.microseconds) > options.interval*1000000:
+				sleep((1./(options.interval*1000))-(1./(t_c.seconds*1000 + t_c.microseconds/1000.)))
 			
 
-
-#for torrent in db.torrents.find():
-#	create_symlink(torrent)
