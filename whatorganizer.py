@@ -67,7 +67,6 @@ def create_symlink(torrent):
 			os.symlink(os.path.join(musicdir,torrent['name']), os.path.join(tagdir,torrent['name']))
 			print "Created symlink: " + os.path.join(tagdir,torrent['name']) + " -> " + os.path.join(musicdir,torrent['name'])
 	
-n = options.amount
 for subdir, dirs, files in os.walk(options.torrentdir):
 	for file in files:
 		if re.match(".+\\.torrent$", file):
@@ -89,11 +88,6 @@ for subdir, dirs, files in os.walk(options.torrentdir):
 			
 			if torrents.find_one({'info_hash': info_hash}):
 				continue
-			
-			if n == 0:
-				print "Looked up "+str(options.amount)+" torrents"
-				break
-			n -= 1
 			
 			t_a = datetime.datetime.now()
 			
