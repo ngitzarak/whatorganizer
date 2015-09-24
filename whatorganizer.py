@@ -65,7 +65,7 @@ def create_symlink(torrent):
 			os.mkdir(tagdir)
 		if not os.path.islink(os.path.join(tagdir, torrent['name'])):
 			os.symlink(os.path.join(musicdir,torrent['name']), os.path.join(tagdir,torrent['name']))
-			print "Created symlink: " + os.path.join(tagdir,torrent['name']) + " -> " + os.path.join(musicdir,torrent['name'])
+			print "Created symlink: " + os.path.join(tag,torrent['name']) + " -> " + os.path.join(musicdir,torrent['name'])
 	
 for subdir, dirs, files in os.walk(options.torrentdir):
 	for file in files:
