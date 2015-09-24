@@ -1,5 +1,3 @@
-whatorganizer traverses your What.CD .torrent files and creates folders based on tags with symlinks.
+# whatorganizer
 
-Requirements:
-*whatapi https://github.com/isaaczafuta/whatapi
-*pymongo
+whatorganizer traverses your What.CD .torrent files and creates folders based on tags with symlinks.

@@ -21,8 +21,8 @@ parser.add_option("-y", "--symdir", help="Directory to maintain symlinks", dest=
 parser.add_option("-u", "--username", help="What.CD username (mandatory on first login)", dest="username")
 parser.add_option("-p", "--password", help="What.CD password (optional, can be entered interactively)", dest="password")
 parser.add_option("-x", "--freq", help="Minimum interval between lookups in seconds (minimum 2)", dest="interval", type="float", default=2.)
-parser.add_option("--clear")
-parser.add_option("--rebuild", help="Rebuild tagfolders")
+#parser.add_option("--clear")
+#parser.add_option("--rebuild", help="Rebuild tagfolders")
 
 (options,args) = parser.parse_args()
 
