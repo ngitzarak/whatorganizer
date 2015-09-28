@@ -109,3 +109,11 @@ for subdir, dirs, files in os.walk(options.torrentdir):
 				sleep((1./(options.interval*1000))-(1./(t_c.seconds*1000 + t_c.microseconds/1000.)))
 			
 
+meta = open(os.path.join(options.symdir,"tagsmeta"), "w")
+for t in torrents.find():
+	meta.write(t["name"].encode('utf8'))
+	meta.write(" [ ")
+	for i in t['torrent_info']['group']['tags']:
+		meta.write(i + " ")
+	meta.write("]\n")
+meta.close()
