@@ -14,15 +14,88 @@ from time import sleep
 import sqlite3
 import datetime
 import pymongo
+import shutil
 
 parser = OptionParser(usage="Usage: %prog [options] filedir", version="%prog 0.1")
 parser.add_option("-w", "--torrentdir", help="Directory with .torrent files", dest="torrentdir")
-parser.add_option("-y", "--symdir", help="Directory to maintain symlinks", dest="symdir")
+parser.add_option("-l", "--libdir", help="Directory to maintain library", dest="libdir")
 parser.add_option("-u", "--username", help="What.CD username (mandatory on first login)", dest="username")
 parser.add_option("-p", "--password", help="What.CD password (optional, can be entered interactively)", dest="password")
 parser.add_option("-x", "--freq", help="Minimum interval between lookups in seconds (minimum 2)", dest="interval", type="float", default=2.)
-#parser.add_option("--clear")
-#parser.add_option("--rebuild", help="Rebuild tagfolders")
+parser.add_option("--rebuild", help="Rebuild the library dir", dest="rebuild", action="store_true", default=False)
+
+
+
+
+
+
+
+
+def create_symlinks(torrent):
+	for tag in torrent['torrent_info']['group']['tags']:
+		if not tag:
+			tag = "_NO_TAGS_"
+		tagdir = os.path.join(options.libdir, "Tags", tag)
+		try:
+			os.stat(tagdir)
+		except:
+			os.mkdir(tagdir)
+		if not os.path.islink(os.path.join(tagdir, torrent['name'])):
+			os.symlink(os.path.join(musicdir,torrent['name']), os.path.join(tagdir,torrent['name']))
+			#print "Created symlink: " + os.path.join(tag,torrent['name']) + " -> " + os.path.join(musicdir,torrent['name'])
+	g_info =  torrent['torrent_info']['group']
+	try:
+		if not g_info['musicInfo']:
+			return
+		
+		for artist in torrent['torrent_info']['group']['musicInfo']['artists']:
+			a_dir = os.path.join(options.libdir, "Artists", artist['name'].replace("/",'+'))
+			try:
+				os.stat(a_dir)
+			except:
+				os.mkdir(a_dir)
+			if not os.path.islink(os.path.join(a_dir, torrent['name'])):
+				os.symlink(os.path.join(musicdir, torrent['name']), os.path.join(a_dir, torrent['name']))
+	except Exception,e:
+		print e
+		print g_info
+		exit(-1)
+		
+		
+def init_folders():
+	try:
+		os.stat(options.libdir)
+	except:
+		os.mkdir(options.libdir)
+	try:
+		os.stat(os.path.join(options.libdir, "Tags"))
+	except:
+		os.mkdir(os.path.join(options.libdir, "Tags"))
+	try:
+		os.stat(os.path.join(options.libdir, "Artists"))
+	except:
+		os.mkdir(os.path.join(options.libdir, "Artists"))
+			
+
+
+
+def create_tagsmeta():
+	meta = open(os.path.join(options.libdir,"tagsmeta"), "w")
+	for t in torrents.find(): #.sort([('name', 1)]):
+		meta.write(t["name"].encode('utf8'))
+		meta.write(" [ ")
+		for i in t['torrent_info']['group']['tags']:
+			meta.write(i + " ")
+		meta.write("]\n")
+	meta.close()
+
+
+
+
+
+
+
+
 
 (options,args) = parser.parse_args()
 
@@ -33,16 +106,33 @@ except pymongo.errors.ConnectionFailure, e:
 db = client.whatorganizer
 torrents = db.torrents
 
+
 try:
 	cookies = pickle.load(open(".cookies", "rb"))
 except:
 	cookies = ""
 	
-if not options.username or not options.torrentdir or not options.symdir or options.interval < 2. or len(args) != 1:
+if not options.username or not options.torrentdir or not options.libdir or options.interval < 2. or len(args) != 1:
 	parser.print_help()
 	exit(-1)
 
 musicdir=args[0]
+
+
+
+if options.rebuild and options.libdir:
+	try:
+		shutil.rmtree(options.libdir)
+	except:
+		False
+	init_folders()
+	for t in torrents.find():
+		create_symlinks(t)
+	create_tagsmeta()
+	exit(0)
+
+
+
 
 if not cookies and not options.password:
 	options.password = getpass("Password: ")
@@ -56,17 +146,9 @@ except whatapi.whatapi.LoginException:
 pickle.dump(apihandle.session.cookies, open('.cookies', 'wb'))
 
 
-def create_symlink(torrent):
-	for tag in torrent['torrent_info']['group']['tags']:
-		tagdir = os.path.join(options.symdir, tag)
-		try:
-			os.stat(tagdir)
-		except:
-			os.mkdir(tagdir)
-		if not os.path.islink(os.path.join(tagdir, torrent['name'])):
-			os.symlink(os.path.join(musicdir,torrent['name']), os.path.join(tagdir,torrent['name']))
-			print "Created symlink: " + os.path.join(tag,torrent['name']) + " -> " + os.path.join(musicdir,torrent['name'])
-	
+init_folders()
+
+
 for subdir, dirs, files in os.walk(options.torrentdir):
 	for file in files:
 		if re.match(".+\\.torrent$", file):
@@ -94,7 +176,7 @@ for subdir, dirs, files in os.walk(options.torrentdir):
 			result = apihandle.request('torrent', hash=info_hash)
 			if result['status'] == "success":
 				torrents.insert_one({'info_hash': info_hash, 'name': name, 'torrent_info': result['response']})
-				create_symlink(torrents.find_one({'info_hash': info_hash}))
+				create_symlinks(torrents.find_one({'info_hash': info_hash}))
 				print name + " added"
 			else:
 				print "Error: "+result['status']
@@ -109,11 +191,4 @@ for subdir, dirs, files in os.walk(options.torrentdir):
 				sleep((1./(options.interval*1000))-(1./(t_c.seconds*1000 + t_c.microseconds/1000.)))
 			
 
-meta = open(os.path.join(options.symdir,"tagsmeta"), "w")
-for t in torrents.find():
-	meta.write(t["name"].encode('utf8'))
-	meta.write(" [ ")
-	for i in t['torrent_info']['group']['tags']:
-		meta.write(i + " ")
-	meta.write("]\n")
-meta.close()
+create_tagsmeta()
