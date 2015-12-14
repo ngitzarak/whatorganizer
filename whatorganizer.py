@@ -23,11 +23,37 @@ parser.add_option("-u", "--username", help="What.CD username (mandatory on first
 parser.add_option("-p", "--password", help="What.CD password (optional, can be entered interactively)", dest="password")
 parser.add_option("-x", "--freq", help="Minimum interval between lookups in seconds (minimum 2)", dest="interval", type="float", default=2.)
 parser.add_option("--rebuild", help="Rebuild the library dir", dest="rebuild", action="store_true", default=False)
+parser.add_option("--rebuild-favourites", help="Rebuild favourites", dest="rebuild_favourites", action="store_true", default=False)
+
+
+try:
+	client = pymongo.MongoClient()
+except pymongo.errors.ConnectionFailure, e:
+	print "Could not connect to MongoDB: %s" % e
+db = client.whatorganizer
+torrents = db.torrents
 
 
 
+(options,args) = parser.parse_args()
 
+musicdir=args[0]
 
+favourites = []
+for subdir, dirs, files in os.walk(os.path.join(options.libdir, "Favourites")):
+	for dir in dirs:
+		favourites.append((dir,sorted(dir.split())))
+
+def what_favourites(torrent):
+	is_in = []
+	for f in favourites:
+		n_m = 0
+		for i in f[1]:
+			if i in torrent['torrent_info']['group']['tags']:
+				n_m += 1
+		if n_m == len(f[1]):
+			is_in.append(f)
+	return is_in
 
 
 
@@ -41,6 +67,14 @@ def create_symlinks(torrent):
 		except:
 			os.mkdir(tagdir)
 		if not os.path.islink(os.path.join(tagdir, torrent['name'])):
+			#if options.tagsinlink:
+			#	tagdesc = "[ "
+			#	for _tag in torrent['torrent_info']['group']['tags']:
+			#		if _tag:
+			#			tagdesc += _tag + " "
+			#	tagdesc += "]"
+			#	os.symlink(os.path.join(musicdir,torrent['name']), os.path.join(tagdir,torrent['name']+" "+tagdesc))
+			#else:
 			os.symlink(os.path.join(musicdir,torrent['name']), os.path.join(tagdir,torrent['name']))
 			#print "Created symlink: " + os.path.join(tag,torrent['name']) + " -> " + os.path.join(musicdir,torrent['name'])
 	g_info =  torrent['torrent_info']['group']
@@ -60,8 +94,13 @@ def create_symlinks(torrent):
 		print e
 		print g_info
 		exit(-1)
-		
-		
+	
+	w = what_favourites(t)
+	if w:
+		for i in w:
+			f_dir = os.path.join(options.libdir, 'Favourites', i[0])
+			if not os.path.islink(os.path.join(f_dir, torrent['name'])):
+				os.symlink(os.path.join(musicdir, torrent['name']), os.path.join(f_dir, torrent['name']))
 def init_folders():
 	try:
 		os.stat(options.libdir)
@@ -75,7 +114,10 @@ def init_folders():
 		os.stat(os.path.join(options.libdir, "Artists"))
 	except:
 		os.mkdir(os.path.join(options.libdir, "Artists"))
-			
+	try:
+		os.stat(os.path.join(options.libdir, "Favourites"))
+	except:
+		os.mkdir(os.path.join(options.libdir, "Favourites"))		
 
 
 
@@ -90,33 +132,32 @@ def create_tagsmeta():
 	meta.close()
 
 
-
-
-
-
-
-
-
-(options,args) = parser.parse_args()
-
-try:
-	client = pymongo.MongoClient()
-except pymongo.errors.ConnectionFailure, e:
-	print "Could not connect to MongoDB: %s" % e
-db = client.whatorganizer
-torrents = db.torrents
-
+		
+		
 
 try:
 	cookies = pickle.load(open(".cookies", "rb"))
 except:
 	cookies = ""
-	
+
 if not options.username or not options.torrentdir or not options.libdir or options.interval < 2. or len(args) != 1:
 	parser.print_help()
 	exit(-1)
 
-musicdir=args[0]
+
+
+if options.rebuild_favourites:
+	init_folders()
+	
+	for f in favourites:
+		shutil.rmtree(os.path.join(options.libdir, 'Favourites', f[0]))
+		os.mkdir(os.path.join(options.libdir, 'Favourites', f[0]))
+	for t in torrents.find():
+		favs = what_favourites(t)
+		if favs:
+			create_symlinks(t)
+	#create_tagsmeta()
+	exit(0)
 
 
 
@@ -124,6 +165,7 @@ if options.rebuild and options.libdir:
 	try:
 		shutil.rmtree(options.libdir)
 	except:
+		print "Could not remove lib dir"
 		False
 	init_folders()
 	for t in torrents.find():
@@ -176,7 +218,8 @@ for subdir, dirs, files in os.walk(options.torrentdir):
 			result = apihandle.request('torrent', hash=info_hash)
 			if result['status'] == "success":
 				torrents.insert_one({'info_hash': info_hash, 'name': name, 'torrent_info': result['response']})
-				create_symlinks(torrents.find_one({'info_hash': info_hash}))
+				t = torrents.find_one({'info_hash': info_hash})
+				create_symlinks(t)
 				print name + " added"
 			else:
 				print "Error: "+result['status']
