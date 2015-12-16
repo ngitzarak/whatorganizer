@@ -39,10 +39,10 @@ torrents = db.torrents
 
 musicdir=args[0]
 
-favourites = []
-for subdir, dirs, files in os.walk(os.path.join(options.libdir, "Favourites")):
-	for dir in dirs:
-		favourites.append((dir,sorted(dir.split())))
+favourites = [(d, sorted(d.split())) for d in os.listdir(os.path.join(options.libdir, "Favourites")) if os.path.isdir(os.path.join(options.libdir, "Favourites", d))]
+#for subdir, dirs, files in os.walk(os.path.join(options.libdir, "Favourites")):
+#	for dir in dirs:
+#		favourites.append((dir,sorted(dir.split())))
 
 def what_favourites(torrent):
 	is_in = []
