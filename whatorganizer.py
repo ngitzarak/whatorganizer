@@ -91,7 +91,8 @@ def create_symlinks(torrent):
 			except:
 				os.mkdir(a_dir)
 			if not os.path.islink(os.path.join(a_dir, torrent['name'])):
-				os.symlink(os.path.join(musicdir, torrent['name']), os.path.join(a_dir, torrent['name']))
+				if os.path.isdir(os.path.join(musicdir, torrent['name'])):
+					os.symlink(os.path.join(musicdir, torrent['name']), os.path.join(a_dir, torrent['name']))
 	except Exception,e:
 		print e
 		print g_info
@@ -102,7 +103,8 @@ def create_symlinks(torrent):
 		for i in w:
 			f_dir = os.path.join(options.libdir, 'Favourites', i[0])
 			if not os.path.islink(os.path.join(f_dir, torrent['name'])):
-				os.symlink(os.path.join(musicdir, torrent['name']), os.path.join(f_dir, torrent['name']))
+				if os.path.isdir(os.path.join(musicdir, torrent['name'])):
+					os.symlink(os.path.join(musicdir, torrent['name']), os.path.join(f_dir, torrent['name']))
 def init_folders():
 	try:
 		os.stat(options.libdir)
