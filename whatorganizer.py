@@ -75,7 +75,9 @@ def create_symlinks(torrent):
 			#	tagdesc += "]"
 			#	os.symlink(os.path.join(musicdir,torrent['name']), os.path.join(tagdir,torrent['name']+" "+tagdesc))
 			#else:
-			os.symlink(os.path.join(musicdir,torrent['name']), os.path.join(tagdir,torrent['name']))
+
+			if os.path.isdir(os.path.join(musicdir, torrent['name'])):
+				os.symlink(os.path.join(musicdir,torrent['name']), os.path.join(tagdir,torrent['name']))
 			#print "Created symlink: " + os.path.join(tag,torrent['name']) + " -> " + os.path.join(musicdir,torrent['name'])
 	g_info =  torrent['torrent_info']['group']
 	try:
